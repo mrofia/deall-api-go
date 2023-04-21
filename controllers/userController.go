@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strconv"
 
 	"net/http"
 	"time"
@@ -19,6 +20,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -143,5 +145,43 @@ func Login() gin.HandlerFunc {
 
 		c.JSON(http.StatusOK, foundUser)
 
+	}
+}
+
+func GetUsers() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Parse query parameters for pagination
+		limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+		page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+
+		// Set options for MongoDB query
+		options := options.Find()
+		options.SetLimit(int64(limit))
+		options.SetSkip(int64((page - 1) * limit))
+
+		// Query MongoDB for users
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		cur, err := userCollection.Find(ctx, bson.M{}, options)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch users"})
+			return
+		}
+		defer cur.Close(ctx)
+
+		// Iterate over cursor and append results to slice
+		var users []models.User
+		for cur.Next(ctx) {
+			var user models.User
+			err := cur.Decode(&user)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to decode user"})
+				return
+			}
+			users = append(users, user)
+		}
+
+		// Return slice of users as JSON response
+		c.JSON(http.StatusOK, users)
 	}
 }
