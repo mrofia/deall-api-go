@@ -14,9 +14,17 @@ type User struct {
 	Password      *string            `json:"Password" validate:"required,min=6""`
 	Email         *string            `json:"email" validate:"email,required"`
 	Phone         *string            `json:"phone" validate:"required"`
+	Role          *string            `json:"role,omitempty" default:"user"`
 	Token         *string            `json:"token"`
 	Refresh_token *string            `json:"refresh_token"`
 	Created_at    time.Time          `json:"created_at"`
 	Updated_at    time.Time          `json:"updated_at"`
 	User_id       string             `json:"user_id"`
+}
+
+func (u *User) SetDefaultRole() {
+	if u.Role == nil {
+		role := "user"
+		u.Role = &role
+	}
 }
