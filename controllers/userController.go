@@ -292,3 +292,37 @@ func UpdateUser() gin.HandlerFunc {
 		c.JSON(http.StatusOK, result)
 	}
 }
+
+func Delete() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
+		defer cancel()
+		var user models.User
+
+		userID := c.Param("id")
+		objID, err := primitive.ObjectIDFromHex(userID)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user ID"})
+			return
+		}
+
+		// check if user exists
+		err = userCollection.FindOne(ctx, bson.M{"_id": objID}).Decode(&user)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+			return
+		}
+
+		// delete user
+		result, err := userCollection.DeleteOne(ctx, bson.M{"_id": objID})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "error occurred while deleting user"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"message":       "user deleted successfully",
+			"deleted_count": result.DeletedCount,
+		})
+	}
+}
